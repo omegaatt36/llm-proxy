@@ -1,0 +1,8 @@
+services:
+  llm-proxy:
+    container_name: llm-proxy
+    image: omegaatt36/llm-proxy:latest
+    ports:
+      - 4000:4000
+    volumes:
+      - ./config.yaml:/config.yaml
