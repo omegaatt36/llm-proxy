@@ -1,6 +1,7 @@
 services:
   llm-proxy:
     container_name: llm-proxy
+    restart: always
     build:
       context: .
     ports:

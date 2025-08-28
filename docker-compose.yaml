@@ -1,6 +1,7 @@
 services:
   llm-proxy:
     container_name: llm-proxy
+    restart: always
     image: omegaatt36/llm-proxy:latest
     ports:
       - 4000:4000
