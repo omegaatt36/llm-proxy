@@ -31,6 +31,7 @@ func (p *ProxyServer) Start(ctx context.Context) error {
 	mux.HandleFunc("POST /v1/chat/completions", p.HandleChatCompletions)
 	mux.HandleFunc("POST /v1/messages", p.HandleMessages)
 	mux.HandleFunc("GET /v1/models", p.HandleModels)
+	mux.HandleFunc("GET /health", p.HandleHealth)
 	mux.HandleFunc("/", p.HandleDefault)
 
 	server := &http.Server{
@@ -402,6 +403,12 @@ func (p *ProxyServer) HandleModels(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(resp.StatusCode)
 	w.Write(body)
+}
+
+func (p *ProxyServer) HandleHealth(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("OK"))
 }
 
 func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
