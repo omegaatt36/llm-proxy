@@ -1,7 +1,6 @@
 package server
 
 import (
-	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
@@ -42,6 +41,11 @@ func logging(next http.Handler) http.Handler {
 		path := r.URL.Path
 		duration := time.Since(startsAt)
 
-		slog.InfoContext(ctx, fmt.Sprintf("%s %d %s %s", method, wrappedWriter.statusCode, duration.String(), path))
+		slog.InfoContext(ctx, "request",
+			"method", method,
+			"status", wrappedWriter.statusCode,
+			"duration", duration.String(),
+			"path", path,
+		)
 	})
 }

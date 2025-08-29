@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"os/signal"
@@ -18,7 +17,7 @@ func main() {
 
 	config, err := config.Load()
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to load configuration: %v", err))
+		slog.Error("Failed to load configuration", "error", err)
 		os.Exit(1)
 	}
 
@@ -34,12 +33,12 @@ func main() {
 		})))
 	}
 
-	slog.Debug(fmt.Sprintf("Configuration loaded: %+v", config))
-	slog.Info(fmt.Sprintf("Model mappings: %v", config.ModelMappings))
+	slog.Debug("Configuration loaded", "config", config)
+	slog.Info("Model mappings", "mappings", config.ModelMappings)
 
 	proxyServer, err := server.NewProxyServer(config, nil)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Failed to create proxy server: %v", err))
+		slog.Error("Failed to create proxy server", "error", err)
 		os.Exit(1)
 	}
 
@@ -47,7 +46,7 @@ func main() {
 	defer cancel()
 
 	if err := proxyServer.Start(ctx); err != nil {
-		slog.Error(fmt.Sprintf("Failed to start proxy server: %v", err))
+		slog.Error("Failed to start proxy server", "error", err)
 		os.Exit(1)
 	}
 
@@ -55,7 +54,7 @@ func main() {
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
 	sig := <-sigChan
-	slog.Info(fmt.Sprintf("Received signal: %v, shutting down...", sig))
+	slog.Info("Received signal, shutting down...", "signal", sig)
 
 	// Cancel context to gracefully shutdown
 	cancel()

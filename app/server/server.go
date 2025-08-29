@@ -42,12 +42,12 @@ func (p *ProxyServer) Start(ctx context.Context) error {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	slog.Info(fmt.Sprintf("LLM Proxy server starting on port %s", p.port))
-	slog.Info(fmt.Sprintf("Proxying to: %s", p.upstreamURL))
+	slog.Info("LLM Proxy server starting", "port", p.port)
+	slog.Info("Proxying to", "url", p.upstreamURL)
 
 	go func() {
 		if err := server.ListenAndServe(); err != nil {
-			slog.Error(fmt.Sprintf("Server failed to start: %v", err))
+			slog.Error("Server failed to start", "error", err)
 		}
 	}()
 
@@ -57,7 +57,7 @@ func (p *ProxyServer) Start(ctx context.Context) error {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 		if err := server.Shutdown(ctx); err != nil {
-			slog.Error(fmt.Sprintf("Server failed to shutdown: %v", err))
+			slog.Error("Server failed to shutdown", "error", err)
 		}
 	}()
 
@@ -100,7 +100,7 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 	}
 	defer r.Body.Close()
 
-	slog.Debug(fmt.Sprintf("Chat completions request body: %s", string(body)))
+	slog.Debug("Chat completions request body", "body", string(body))
 
 	var req map[string]any
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -121,7 +121,7 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 
 	if mappedModel, exists := p.modelMappings[originalModel]; exists {
 		req["model"] = mappedModel
-		slog.Debug(fmt.Sprintf("Mapped model: %s -> %s", originalModel, mappedModel))
+		slog.Debug("Mapped model", "from", originalModel, "to", mappedModel)
 	}
 
 	modifiedBody, err := json.Marshal(req)
@@ -153,7 +153,7 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 
 	resp, err := p.httpClient.Do(proxyReq)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Upstream request failed: %v", err))
+		slog.Error("Upstream request failed", "error", err)
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
@@ -189,7 +189,7 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 	} else {
 		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to read response body: %v", err))
+			slog.Error("Failed to read response body", "error", err)
 			return
 		}
 
@@ -215,7 +215,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	}
 	defer r.Body.Close()
 
-	slog.Debug(fmt.Sprintf("Messages request body: %s", string(body)))
+	slog.Debug("Messages request body", "body", string(body))
 
 	var req map[string]any
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -229,7 +229,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Debug(fmt.Sprintf("Received request for model: %s", originalModel))
+	slog.Debug("Received request for model", "model", originalModel)
 
 	originalStream, ok := req["stream"].(bool)
 	if !ok {
@@ -238,7 +238,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 
 	if mappedModel, exists := p.modelMappings[originalModel]; exists {
 		req["model"] = mappedModel
-		slog.Debug(fmt.Sprintf("Mapped model: %s -> %s", originalModel, mappedModel))
+		slog.Debug("Mapped model", "from", originalModel, "to", mappedModel)
 	}
 
 	modifiedBody, err := json.Marshal(req)
@@ -275,7 +275,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := p.httpClient.Do(proxyReq)
 	if err != nil {
-		slog.Error(fmt.Sprintf("Upstream request failed: %v", err))
+		slog.Error("Upstream request failed", "error", err)
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
@@ -283,7 +283,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
-		slog.Error(fmt.Sprintf("Upstream returned error %d: %s", resp.StatusCode, string(responseBody)))
+		slog.Error("Upstream returned error", "status", resp.StatusCode, "body", string(responseBody))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
 		w.Write(responseBody)
@@ -320,7 +320,7 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 	} else {
 		responseBody, err := io.ReadAll(resp.Body)
 		if err != nil {
-			slog.Error(fmt.Sprintf("Failed to read response body: %v", err))
+			slog.Error("Failed to read response body", "error", err)
 			return
 		}
 
@@ -417,7 +417,7 @@ func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
 		targetURL += "?" + r.URL.RawQuery
 	}
 
-	slog.Debug(fmt.Sprintf("Default handler - proxying: %s", r.URL.RequestURI()))
+	slog.Debug("Default handler - proxying", "uri", r.URL.RequestURI())
 
 	proxyReq, err := http.NewRequest(r.Method, targetURL, r.Body)
 	if err != nil {
