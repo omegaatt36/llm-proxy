@@ -98,7 +98,11 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			slog.Error("Failed to close request body", "error", err)
+		}
+	}()
 
 	slog.Debug("Chat completions request body", "body", string(body))
 
@@ -157,7 +161,11 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}()
 
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -184,7 +192,9 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 				}
 			}
 		} else {
-			io.Copy(w, resp.Body)
+			if _, err := io.Copy(w, resp.Body); err != nil {
+				slog.Error("Failed to copy response body", "error", err)
+			}
 		}
 	} else {
 		responseBody, err := io.ReadAll(resp.Body)
@@ -198,12 +208,16 @@ func (p *ProxyServer) HandleChatCompletions(w http.ResponseWriter, r *http.Reque
 			if responseData["model"] == req["model"] {
 				responseData["model"] = originalModel
 				modifiedResponse, _ := json.Marshal(responseData)
-				w.Write(modifiedResponse)
+				if _, err := w.Write(modifiedResponse); err != nil {
+					slog.Error("Failed to write response", "error", err)
+				}
 				return
 			}
 		}
 
-		w.Write(responseBody)
+		if _, err := w.Write(responseBody); err != nil {
+			slog.Error("Failed to write response", "error", err)
+		}
 	}
 }
 
@@ -213,7 +227,11 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			slog.Error("Failed to close request body", "error", err)
+		}
+	}()
 
 	slog.Debug("Messages request body", "body", string(body))
 
@@ -279,14 +297,20 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}()
 
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
 		slog.Error("Upstream returned error", "status", resp.StatusCode, "body", string(responseBody))
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(resp.StatusCode)
-		w.Write(responseBody)
+		if _, err := w.Write(responseBody); err != nil {
+			slog.Error("Failed to write response", "error", err)
+		}
 		return
 	}
 
@@ -315,7 +339,9 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		} else {
-			io.Copy(w, resp.Body)
+			if _, err := io.Copy(w, resp.Body); err != nil {
+				slog.Error("Failed to copy response body", "error", err)
+			}
 		}
 	} else {
 		responseBody, err := io.ReadAll(resp.Body)
@@ -329,12 +355,16 @@ func (p *ProxyServer) HandleMessages(w http.ResponseWriter, r *http.Request) {
 			if responseData["model"] == req["model"] {
 				responseData["model"] = originalModel
 				modifiedResponse, _ := json.Marshal(responseData)
-				w.Write(modifiedResponse)
+				if _, err := w.Write(modifiedResponse); err != nil {
+					slog.Error("Failed to write response", "error", err)
+				}
 				return
 			}
 		}
 
-		w.Write(responseBody)
+		if _, err := w.Write(responseBody); err != nil {
+			slog.Error("Failed to write response", "error", err)
+		}
 	}
 }
 
@@ -362,7 +392,11 @@ func (p *ProxyServer) HandleModels(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
@@ -391,7 +425,9 @@ func (p *ProxyServer) HandleModels(w http.ResponseWriter, r *http.Request) {
 			modifiedBody, _ := json.Marshal(modelsResponse)
 			w.Header().Set("Content-Type", "application/json")
 			w.WriteHeader(resp.StatusCode)
-			w.Write(modifiedBody)
+			if _, err := w.Write(modifiedBody); err != nil {
+				slog.Error("Failed to write response", "error", err)
+			}
 			return
 		}
 	}
@@ -402,13 +438,17 @@ func (p *ProxyServer) HandleModels(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	w.Write(body)
+	if _, err := w.Write(body); err != nil {
+		slog.Error("Failed to write response", "error", err)
+	}
 }
 
-func (p *ProxyServer) HandleHealth(w http.ResponseWriter, r *http.Request) {
+func (p *ProxyServer) HandleHealth(w http.ResponseWriter, _ *http.Request) {
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("OK"))
+	if _, err := w.Write([]byte("OK")); err != nil {
+		slog.Error("Failed to write response", "error", err)
+	}
 }
 
 func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
@@ -424,7 +464,11 @@ func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to create proxy request", http.StatusInternalServerError)
 		return
 	}
-	defer r.Body.Close()
+	defer func() {
+		if err := r.Body.Close(); err != nil {
+			slog.Error("Failed to close request body", "error", err)
+		}
+	}()
 
 	for key, values := range r.Header {
 		if key != "Authorization" {
@@ -443,7 +487,11 @@ func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Upstream request failed", http.StatusBadGateway)
 		return
 	}
-	defer resp.Body.Close()
+	defer func() {
+		if err := resp.Body.Close(); err != nil {
+			slog.Error("Failed to close response body", "error", err)
+		}
+	}()
 
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -452,5 +500,7 @@ func (p *ProxyServer) HandleDefault(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	if _, err := io.Copy(w, resp.Body); err != nil {
+		slog.Error("Failed to copy response body", "error", err)
+	}
 }
